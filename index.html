@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test WS</title></head>
+<body>
+  <input id="msg" placeholder="Mensaje">
+  <button onclick="send()">Enviar</button>
+  <pre id="log"></pre>
+
+  <script>
+    const socket = new WebSocket("ws://localhost:8080/ws?account=juan");
+
+    socket.onmessage = (event) => {
+      document.getElementById("log").textContent += "\n" + event.data;
+    };
+
+    function send() {
+      const mensaje = {
+        sender: "julio",
+        receiver: "hannia",
+        content: document.getElementById("msg").value
+      };
+      socket.send(JSON.stringify(mensaje));
+    }
+  </script>
+</body>
+</html>
