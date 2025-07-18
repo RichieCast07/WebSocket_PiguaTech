@@ -1,25 +1,119 @@
 <!DOCTYPE html>
 <html>
-<head><title>Test WS</title></head>
+<head>
+  <title>Go WebSocket Tester</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; max-width: 600px; margin: auto; }
+    .panel { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 5px; }
+    input { width: 95%; padding: 8px; margin-bottom: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    #log { background-color: #f0f0f0; border: 1px solid #ddd; height: 200px; overflow-y: scroll; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
 <body>
-  <input id="msg" placeholder="Mensaje">
-  <button onclick="send()">Enviar</button>
+  <h1>Go WebSocket Tester</h1>
+
+  <div class="panel">
+    <h3>1. Conexión</h3>
+    <label for="account">Mi ID de Cuenta (Conectar como):</label>
+    <input id="account" value="juan">
+    <button onclick="connect()">Conectar</button>
+    <button onclick="disconnect()">Desconectar</button>
+  </div>
+  
+  <div class="panel" id="messaging-panel" style="display: none;">
+    <h3>2. Enviar Mensaje</h3>
+    <label for="receiver">ID del Destinatario:</label>
+    <input id="receiver" value="pablo">
+    <label for="msg">Mensaje:</label>
+    <input id="msg" placeholder="Escribe tu mensaje aquí...">
+    <button onclick="send()">Enviar</button>
+  </div>
+
+  <h3>Log de Eventos</h3>
   <pre id="log"></pre>
 
   <script>
-    const socket = new WebSocket("ws://localhost:8080/ws?account=juan");
+    let socket;
+    const logElem = document.getElementById("log");
+    const accountInput = document.getElementById("account");
+    const messagingPanel = document.getElementById("messaging-panel");
 
-    socket.onmessage = (event) => {
-      document.getElementById("log").textContent += "\n" + event.data;
-    };
+    function log(message) {
+      logElem.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+      logElem.scrollTop = logElem.scrollHeight; 
+    }
+
+    function connect() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        log("Ya estás conectado.");
+        return;
+      }
+      
+      const accountId = accountInput.value;
+      if (!accountId) {
+        alert("Por favor, introduce un ID de cuenta para conectar.");
+        return;
+      }
+      
+      const wsUrl = `ws://localhost:3000/ws?account=${accountId}`;
+      log(`Conectando a ${wsUrl}...`);
+      
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = (event) => {
+        log(`Conectado exitosamente como: ${accountId}`);
+        messagingPanel.style.display = 'block';
+      };
+
+      socket.onmessage = (event) => {
+        log(`MENSAJE RECIBIDO: ${event.data}`);
+      };
+
+      socket.onerror = (event) => {
+        log("ERROR: Ocurrió un error en la conexión.");
+        console.error("WebSocket Error:", event);
+      };
+
+      socket.onclose = (event) => {
+        log(`Conexión cerrada. Código: ${event.code}, Razón: ${event.reason || 'Sin razón específica'}`);
+        messagingPanel.style.display = 'none';
+      };
+    }
+
+    function disconnect() {
+      if (socket) {
+        socket.close();
+      } else {
+        log("No hay ninguna conexión activa para cerrar.");
+      }
+    }
 
     function send() {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        alert("Debes estar conectado para enviar un mensaje.");
+        return;
+      }
+
+      const senderId = accountInput.value;
+      const receiverId = document.getElementById("receiver").value;
+      const content = document.getElementById("msg").value;
+      
+      if(!receiverId || !content) {
+        alert("El destinatario y el mensaje no pueden estar vacíos.");
+        return;
+      }
+
       const mensaje = {
-        sender: "julio",
-        receiver: "hannia",
-        content: document.getElementById("msg").value
+        sender: senderId,
+        receiver: receiverId,
+        content: content
       };
-      socket.send(JSON.stringify(mensaje));
+
+      const jsonMessage = JSON.stringify(mensaje);
+      log(`ENVIANDO: ${jsonMessage}`);
+      socket.send(jsonMessage);
+      document.getElementById("msg").value = ''; 
     }
   </script>
 </body>
